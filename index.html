@@ -43,6 +43,7 @@ padding:30px;
 display:flex;
 gap:20px;
 margin-bottom:30px;
+flex-wrap:wrap;
 }
 
 .card{
@@ -50,6 +51,7 @@ background:#1e293b;
 padding:20px;
 border-radius:10px;
 flex:1;
+min-width:200px;
 }
 
 table{
@@ -61,12 +63,20 @@ margin-top:20px;
 th,td{
 padding:10px;
 border-bottom:1px solid #334155;
+text-align:left;
 }
 
 canvas{
 background:white;
 border-radius:10px;
 padding:10px;
+margin-top:10px;
+}
+
+input{
+padding:10px;
+margin-top:15px;
+width:300px;
 }
 
 </style>
@@ -88,22 +98,17 @@ padding:10px;
 
 <div class="card">
 <h3>Total Mentions</h3>
-<p id="totalMentions">-</p>
-</div>
-
-<div class="card">
-<h3>Mentions Last 30 Days</h3>
-<p id="mentions30">-</p>
+<p id="totalMentions">0</p>
 </div>
 
 <div class="card">
 <h3>Unique Authors</h3>
-<p id="authors">-</p>
+<p id="authors">0</p>
 </div>
 
 <div class="card">
-<h3>Avg Engagement</h3>
-<p id="engagement">-</p>
+<h3>Average Engagement</h3>
+<p id="engagement">0</p>
 </div>
 
 </div>
@@ -116,7 +121,7 @@ padding:10px;
 
 <h2>Mentions Explorer</h2>
 
-<input id="search" placeholder="Search posts..." style="padding:10px;width:300px">
+<input id="search" placeholder="Search posts...">
 
 <table id="postsTable">
 <thead>
@@ -129,7 +134,9 @@ padding:10px;
 <th>Link</th>
 </tr>
 </thead>
+
 <tbody></tbody>
+
 </table>
 
 </div>
@@ -137,7 +144,10 @@ padding:10px;
 <script>
 
 const sheetURL =
-https://docs.google.com/spreadsheets/d/e/2PACX-1vTRD3B_hSW8TiMA2DuvLjYdVJx552K9Qi6uFXXkAzO4qwKgGwtrCkzSg2iaL5h1gq9Y9Nm166-cDOOY/pubhtml
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vTRD3B_hSW8TiMA2DuvLjYdVJx552K9Qi6uFXXkAzO4qwKgGwtrCkzSg2iaL5h1gq9Y9Nm166-cDOOY/pub?output=csv"
+
+let globalData=[]
+
 Papa.parse(sheetURL,{
 
 download:true,
@@ -145,11 +155,23 @@ header:true,
 
 complete:function(results){
 
-let data = results.data
+let data = results.data.filter(row => row.Author)
 
-let totalMentions = data.length
-let authors = new Set()
-let totalEngagement = 0
+globalData=data
+
+processData(data)
+
+renderTable(data)
+
+}
+
+})
+
+function processData(data){
+
+let totalMentions=data.length
+let authors=new Set()
+let totalEngagement=0
 
 let mentionsByDate={}
 let authorCount={}
@@ -158,30 +180,27 @@ data.forEach(row=>{
 
 authors.add(row.Author)
 
-let likes = Number(row.Likes)||0
-let comments = Number(row.Comments)||0
+let likes=Number(row.Likes)||0
+let comments=Number(row.Comments)||0
 
-totalEngagement += likes + comments
+totalEngagement+=likes+comments
 
-let date = row.Date
+let date=row.Date
 
 mentionsByDate[date]=(mentionsByDate[date]||0)+1
 authorCount[row.Author]=(authorCount[row.Author]||0)+1
 
 })
 
-document.getElementById("totalMentions").innerText = totalMentions
-document.getElementById("authors").innerText = authors.size
-document.getElementById("engagement").innerText =
+document.getElementById("totalMentions").innerText=totalMentions
+document.getElementById("authors").innerText=authors.size
+
+document.getElementById("engagement").innerText=
 Math.round(totalEngagement/totalMentions)
 
 renderCharts(mentionsByDate,authorCount)
 
-renderTable(data)
-
 }
-
-})
 
 function renderCharts(mentions,authors){
 
@@ -191,10 +210,15 @@ type:"line",
 
 data:{
 labels:Object.keys(mentions),
+
 datasets:[{
+
 label:"Mentions",
+
 data:Object.values(mentions)
+
 }]
+
 }
 
 })
@@ -204,11 +228,17 @@ new Chart(document.getElementById("authorChart"),{
 type:"bar",
 
 data:{
+
 labels:Object.keys(authors),
+
 datasets:[{
+
 label:"Posts",
+
 data:Object.values(authors)
+
 }]
+
 }
 
 })
@@ -217,19 +247,23 @@ data:Object.values(authors)
 
 function renderTable(data){
 
-const tbody = document.querySelector("#postsTable tbody")
+const tbody=document.querySelector("#postsTable tbody")
+
+tbody.innerHTML=""
 
 data.forEach(row=>{
 
-let tr = document.createElement("tr")
+let tr=document.createElement("tr")
 
 tr.innerHTML=`
+
 <td>${row.Author}</td>
-<td>${row.Post_text.substring(0,80)}...</td>
+<td>${row.Post_text ? row.Post_text.substring(0,80)+"..." : ""}</td>
 <td>${row.Date}</td>
 <td>${row.Likes}</td>
 <td>${row.Comments}</td>
-<td><a href="${row.Post_URL}" target="_blank">View</a></td>
+<td><a href="${row.Post_URL}" target="_blank" style="color:#38bdf8">View</a></td>
+
 `
 
 tbody.appendChild(tr)
@@ -237,6 +271,21 @@ tbody.appendChild(tr)
 })
 
 }
+
+document.getElementById("search").addEventListener("input",function(){
+
+let keyword=this.value.toLowerCase()
+
+let filtered=globalData.filter(row=>
+
+(row.Post_text && row.Post_text.toLowerCase().includes(keyword)) ||
+(row.Author && row.Author.toLowerCase().includes(keyword))
+
+)
+
+renderTable(filtered)
+
+})
 
 </script>
 
