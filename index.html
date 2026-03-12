@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>Adya LinkedIn Insights</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -34,15 +35,8 @@ flex:1;
 min-width:200px;
 }
 
-table{
-width:100%;
-border-collapse:collapse;
-margin-top:20px;
-}
-
-th,td{
-padding:10px;
-border-bottom:1px solid #334155;
+h1,h2{
+margin-top:0;
 }
 
 canvas{
@@ -52,7 +46,37 @@ padding:10px;
 margin-top:20px;
 }
 
+input{
+padding:10px;
+width:300px;
+margin-top:20px;
+border-radius:6px;
+border:none;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+background:#020617;
+}
+
+th,td{
+padding:12px;
+border-bottom:1px solid #334155;
+}
+
+th{
+text-align:left;
+background:#020617;
+}
+
+a{
+color:#38bdf8;
+}
+
 </style>
+
 </head>
 
 <body>
@@ -81,12 +105,17 @@ margin-top:20px;
 </div>
 
 <h2>Mentions Over Time</h2>
+
 <canvas id="mentionsChart"></canvas>
 
 <h2>Mentions Explorer</h2>
 
+<input id="searchInput" placeholder="Search posts or authors">
+
 <table>
+
 <thead>
+
 <tr>
 <th>Author</th>
 <th>Post</th>
@@ -95,6 +124,7 @@ margin-top:20px;
 <th>Comments</th>
 <th>Link</th>
 </tr>
+
 </thead>
 
 <tbody id="tableBody"></tbody>
@@ -108,15 +138,26 @@ margin-top:20px;
 const sheetURL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRD3B_hSW8TiMA2DuvLjYdVJx552K9Qi6uFXXkAzO4qwKgGwtrCkzSg2iaL5h1gq9Y9Nm166-cDOOY/pub?output=csv"
 
+let globalData = []
+
 Papa.parse(sheetURL,{
 download:true,
 header:true,
 
 complete:function(results){
 
-let data = results.data.filter(row => row.author)
+let data = results.data.filter(row => Object.values(row).some(v => v))
 
-console.log(data)
+globalData = data
+
+processData(data)
+renderTable(data)
+
+}
+
+})
+
+function processData(data){
 
 let authors = new Set()
 let engagement = 0
@@ -124,8 +165,8 @@ let mentionsByDate = {}
 
 data.forEach(row=>{
 
-let author = row.author
-let date = row.postedAt
+let author = row.author || ""
+let date = row.postedAt || ""
 
 let likes = Number(row.likes || 0)
 let comments = Number(row.comments || 0)
@@ -140,15 +181,13 @@ mentionsByDate[date] = (mentionsByDate[date] || 0) + 1
 
 document.getElementById("totalMentions").innerText = data.length
 document.getElementById("authors").innerText = authors.size
+
 document.getElementById("engagement").innerText =
 Math.round(engagement / data.length)
 
 renderChart(mentionsByDate)
-renderTable(data)
 
 }
-
-})
 
 function renderChart(mentions){
 
@@ -158,10 +197,12 @@ type:"line",
 
 data:{
 labels:Object.keys(mentions),
+
 datasets:[{
 label:"Mentions",
 data:Object.values(mentions)
 }]
+
 }
 
 })
@@ -171,18 +212,26 @@ data:Object.values(mentions)
 function renderTable(data){
 
 let tbody = document.getElementById("tableBody")
+tbody.innerHTML = ""
 
 data.forEach(row=>{
+
+let author = row.author || ""
+let text = row.text || row.postText || row.content || ""
+let date = row.postedAt || ""
+let likes = row.likes || 0
+let comments = row.comments || 0
+let link = row.linkedinUrl || "#"
 
 let tr = document.createElement("tr")
 
 tr.innerHTML = `
-<td>${row.author}</td>
-<td>${row.text ? row.text.substring(0,100) : ""}</td>
-<td>${row.postedAt}</td>
-<td>${row.likes || 0}</td>
-<td>${row.comments || 0}</td>
-<td><a href="${row.linkedinUrl}" target="_blank">View</a></td>
+<td>${author}</td>
+<td>${text.substring(0,120)}</td>
+<td>${date}</td>
+<td>${likes}</td>
+<td>${comments}</td>
+<td><a href="${link}" target="_blank">View</a></td>
 `
 
 tbody.appendChild(tr)
@@ -190,6 +239,20 @@ tbody.appendChild(tr)
 })
 
 }
+
+document.getElementById("searchInput").addEventListener("input",function(){
+
+let keyword = this.value.toLowerCase()
+
+let filtered = globalData.filter(row =>
+
+JSON.stringify(row).toLowerCase().includes(keyword)
+
+)
+
+renderTable(filtered)
+
+})
 
 </script>
 
