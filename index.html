@@ -13,7 +13,6 @@ body{
 font-family:Arial;
 background:#0f172a;
 color:white;
-margin:0;
 padding:40px;
 }
 
@@ -30,6 +29,19 @@ border-radius:10px;
 flex:1;
 }
 
+canvas{
+background:white;
+border-radius:10px;
+padding:10px;
+margin-top:20px;
+}
+
+input{
+padding:10px;
+margin-top:20px;
+width:300px;
+}
+
 table{
 width:100%;
 border-collapse:collapse;
@@ -41,17 +53,8 @@ padding:10px;
 border-bottom:1px solid #334155;
 }
 
-input{
-padding:10px;
-margin-top:15px;
-width:300px;
-}
-
-canvas{
-background:white;
-border-radius:10px;
-padding:10px;
-margin-top:20px;
+a{
+color:#38bdf8;
 }
 
 </style>
@@ -119,51 +122,63 @@ skipEmptyLines:true,
 
 complete:function(results){
 
-let data = results.data.filter(r => r.author)
+let data = results.data.filter(r => Object.values(r).some(v => v));
 
-globalData=data
+globalData = data;
 
-calculateMetrics(data)
-renderTable(data)
+detectColumns(data);
 
 }
 
-})
+});
 
-function calculateMetrics(data){
+function detectColumns(data){
 
-let authors = new Set()
-let totalEngagement = 0
-let mentionsByDate = {}
+const headers = Object.keys(data[0]);
+
+const authorCol = headers.find(h => h.toLowerCase().includes("author"));
+const dateCol = headers.find(h => h.toLowerCase().includes("date") || h.toLowerCase().includes("posted"));
+const likesCol = headers.find(h => h.toLowerCase().includes("like") || h.toLowerCase().includes("reaction"));
+const commentsCol = headers.find(h => h.toLowerCase().includes("comment"));
+const textCol = headers.find(h => h.toLowerCase().includes("text") || h.toLowerCase().includes("content"));
+const linkCol = headers.find(h => h.toLowerCase().includes("url") || h.toLowerCase().includes("link"));
+
+calculateMetrics(data,authorCol,dateCol,likesCol,commentsCol);
+renderTable(data,authorCol,dateCol,likesCol,commentsCol,textCol,linkCol);
+
+}
+
+function calculateMetrics(data,authorCol,dateCol,likesCol,commentsCol){
+
+let authors = new Set();
+let totalEngagement = 0;
+let mentionsByDate = {};
 
 data.forEach(row=>{
 
-let author = row.author
-let date = row.postedAt
+let author = row[authorCol];
+let date = row[dateCol];
 
-let likes = Number(row.likes) || 0
-let comments = Number(row.comments) || 0
+let likes = Number(row[likesCol]) || 0;
+let comments = Number(row[commentsCol]) || 0;
 
-authors.add(author)
+if(author) authors.add(author);
 
-totalEngagement += likes + comments
+totalEngagement += likes + comments;
 
 if(date){
-
-mentionsByDate[date] = (mentionsByDate[date] || 0) + 1
-
+mentionsByDate[date] = (mentionsByDate[date] || 0) + 1;
 }
 
-})
+});
 
-document.getElementById("totalMentions").innerText = data.length
-document.getElementById("authors").innerText = authors.size
+document.getElementById("totalMentions").innerText = data.length;
+document.getElementById("authors").innerText = authors.size;
 
-let avgEngagement = data.length ? Math.round(totalEngagement/data.length) : 0
+let avg = data.length ? Math.round(totalEngagement/data.length) : 0;
+document.getElementById("engagement").innerText = avg;
 
-document.getElementById("engagement").innerText = avgEngagement
-
-renderChart(mentionsByDate)
+renderChart(mentionsByDate);
 
 }
 
@@ -179,52 +194,51 @@ datasets:[{
 label:"Mentions",
 data:Object.values(data),
 borderColor:"#38bdf8",
-backgroundColor:"rgba(56,189,248,0.2)",
-tension:0.3
+backgroundColor:"rgba(56,189,248,0.2)"
 }]
 }
 
-})
+});
 
 }
 
-function renderTable(data){
+function renderTable(data,authorCol,dateCol,likesCol,commentsCol,textCol,linkCol){
 
-let tbody=document.getElementById("tableBody")
-tbody.innerHTML=""
+let tbody=document.getElementById("tableBody");
+tbody.innerHTML="";
 
 data.forEach(row=>{
 
-let tr=document.createElement("tr")
+let tr=document.createElement("tr");
 
 tr.innerHTML=`
-<td>${row.author}</td>
-<td>${row.text ? row.text.substring(0,120) : ""}</td>
-<td>${row.postedAt}</td>
-<td>${row.likes || 0}</td>
-<td>${row.comments || 0}</td>
-<td><a href="${row.linkedinUrl}" target="_blank">View</a></td>
-`
+<td>${row[authorCol] || ""}</td>
+<td>${row[textCol] ? row[textCol].substring(0,120) : ""}</td>
+<td>${row[dateCol] || ""}</td>
+<td>${row[likesCol] || 0}</td>
+<td>${row[commentsCol] || 0}</td>
+<td><a href="${row[linkCol]}" target="_blank">View</a></td>
+`;
 
-tbody.appendChild(tr)
+tbody.appendChild(tr);
 
-})
+});
 
 }
 
 document.getElementById("search").addEventListener("input",function(){
 
-let q=this.value.toLowerCase()
+let q=this.value.toLowerCase();
 
 let filtered=globalData.filter(r =>
 JSON.stringify(r).toLowerCase().includes(q)
-)
+);
 
-renderTable(filtered)
+detectColumns(filtered);
 
-})
+});
 
 </script>
-</body>
 
+</body>
 </html>
