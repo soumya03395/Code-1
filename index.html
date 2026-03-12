@@ -15,28 +15,8 @@ color:white;
 margin:0;
 }
 
-.sidebar{
-width:220px;
-height:100vh;
-background:#020617;
-position:fixed;
-padding:20px;
-}
-
-.sidebar h2{
-color:#38bdf8;
-}
-
-.sidebar a{
-display:block;
-color:white;
-margin:15px 0;
-text-decoration:none;
-}
-
 .main{
-margin-left:240px;
-padding:30px;
+padding:40px;
 }
 
 .cards{
@@ -69,13 +49,7 @@ canvas{
 background:white;
 border-radius:10px;
 padding:10px;
-margin-top:10px;
-}
-
-input{
-padding:10px;
-margin-top:15px;
-width:300px;
+margin-top:20px;
 }
 
 </style>
@@ -83,15 +57,9 @@ width:300px;
 
 <body>
 
-<div class="sidebar">
-<h2>Adya Insights</h2>
-<a href="#">Dashboard</a>
-<a href="#">Mentions Explorer</a>
-</div>
-
 <div class="main">
 
-<h1>LinkedIn Mentions Dashboard</h1>
+<h1>Adya LinkedIn Insights</h1>
 
 <div class="cards">
 
@@ -115,14 +83,9 @@ width:300px;
 <h2>Mentions Over Time</h2>
 <canvas id="mentionsChart"></canvas>
 
-<h2>Authors Mentioning Adya AI</h2>
-<canvas id="authorChart"></canvas>
-
 <h2>Mentions Explorer</h2>
 
-<input id="search" placeholder="Search posts...">
-
-<table id="postsTable">
+<table>
 <thead>
 <tr>
 <th>Author</th>
@@ -133,7 +96,9 @@ width:300px;
 <th>Link</th>
 </tr>
 </thead>
-<tbody></tbody>
+
+<tbody id="tableBody"></tbody>
+
 </table>
 
 </div>
@@ -143,73 +108,49 @@ width:300px;
 const sheetURL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRD3B_hSW8TiMA2DuvLjYdVJx552K9Qi6uFXXkAzO4qwKgGwtrCkzSg2iaL5h1gq9Y9Nm166-cDOOY/pub?output=csv"
 
-let globalData=[]
-
 Papa.parse(sheetURL,{
-
 download:true,
 header:true,
 
 complete:function(results){
 
-let data = results.data
+let data = results.data.filter(row => row.author)
 
-console.log("RAW DATA",data)
+console.log(data)
 
-globalData=data
+let authors = new Set()
+let engagement = 0
+let mentionsByDate = {}
 
-processData(data)
+data.forEach(row=>{
+
+let author = row.author
+let date = row.postedAt
+
+let likes = Number(row.likes || 0)
+let comments = Number(row.comments || 0)
+
+authors.add(author)
+
+engagement += likes + comments
+
+mentionsByDate[date] = (mentionsByDate[date] || 0) + 1
+
+})
+
+document.getElementById("totalMentions").innerText = data.length
+document.getElementById("authors").innerText = authors.size
+document.getElementById("engagement").innerText =
+Math.round(engagement / data.length)
+
+renderChart(mentionsByDate)
 renderTable(data)
 
 }
 
 })
 
-function processData(data){
-
-let totalMentions=data.length
-
-let authors=new Set()
-
-let totalEngagement=0
-
-let mentionsByDate={}
-let authorCount={}
-
-data.forEach(row=>{
-
-let author=row["Author"] || row["Author Name"]
-
-let post=row["Post_text"] || row["Post Text"]
-
-let likes=Number(row["Likes"])||0
-let comments=Number(row["Comments"])||0
-
-let date=row["Date"]
-
-if(!author) return
-
-authors.add(author)
-
-totalEngagement+=likes+comments
-
-mentionsByDate[date]=(mentionsByDate[date]||0)+1
-
-authorCount[author]=(authorCount[author]||0)+1
-
-})
-
-document.getElementById("totalMentions").innerText=totalMentions
-document.getElementById("authors").innerText=authors.size
-
-document.getElementById("engagement").innerText=
-Math.round(totalEngagement/totalMentions)
-
-renderCharts(mentionsByDate,authorCount)
-
-}
-
-function renderCharts(mentions,authors){
+function renderChart(mentions){
 
 new Chart(document.getElementById("mentionsChart"),{
 
@@ -225,42 +166,23 @@ data:Object.values(mentions)
 
 })
 
-new Chart(document.getElementById("authorChart"),{
-
-type:"bar",
-
-data:{
-labels:Object.keys(authors),
-datasets:[{
-label:"Posts",
-data:Object.values(authors)
-}]
-}
-
-})
-
 }
 
 function renderTable(data){
 
-const tbody=document.querySelector("#postsTable tbody")
-tbody.innerHTML=""
+let tbody = document.getElementById("tableBody")
 
 data.forEach(row=>{
 
-let author=row["Author"] || row["Author Name"]
-let post=row["Post_text"] || row["Post Text"]
-let link=row["Post_URL"] || row["Post URL"]
+let tr = document.createElement("tr")
 
-let tr=document.createElement("tr")
-
-tr.innerHTML=`
-<td>${author}</td>
-<td>${post ? post.substring(0,80)+"..." : ""}</td>
-<td>${row["Date"]}</td>
-<td>${row["Likes"]}</td>
-<td>${row["Comments"]}</td>
-<td><a href="${link}" target="_blank" style="color:#38bdf8">View</a></td>
+tr.innerHTML = `
+<td>${row.author}</td>
+<td>${row.text ? row.text.substring(0,100) : ""}</td>
+<td>${row.postedAt}</td>
+<td>${row.likes || 0}</td>
+<td>${row.comments || 0}</td>
+<td><a href="${row.linkedinUrl}" target="_blank">View</a></td>
 `
 
 tbody.appendChild(tr)
@@ -268,20 +190,6 @@ tbody.appendChild(tr)
 })
 
 }
-
-document.getElementById("search").addEventListener("input",function(){
-
-let keyword=this.value.toLowerCase()
-
-let filtered=globalData.filter(row=>
-
-JSON.stringify(row).toLowerCase().includes(keyword)
-
-)
-
-renderTable(filtered)
-
-})
 
 </script>
 
