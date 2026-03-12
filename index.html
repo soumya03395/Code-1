@@ -6,60 +6,45 @@ const sheetURL =
 let globalData=[];
 
 Papa.parse(sheetURL,{
-
 download:true,
 header:true,
 skipEmptyLines:true,
 
 complete:function(results){
 
-let rows = results.data.filter(r => Object.values(r).some(v => v && v !== ""))
+let data = results.data.filter(r => r.author)
 
-console.log("Detected Headers:",Object.keys(rows[0]))
+globalData=data
 
-globalData = rows
-
-processData(rows)
-renderTable(rows)
+calculateMetrics(data)
+renderTable(data)
 
 }
 
 })
 
-function detect(row,keys){
-
-for(let k of keys){
-
-if(row[k] !== undefined && row[k] !== "") return row[k]
-
-}
-
-return ""
-
-}
-
-function processData(data){
-
-if(data.length === 0) return
+function calculateMetrics(data){
 
 let authors = new Set()
-let engagement = 0
+let totalEngagement = 0
 let mentionsByDate = {}
 
 data.forEach(row=>{
 
-let author = detect(row,["author","Author","name"])
-let date = detect(row,["postedAt","date","Date","createdAt"])
+let author = row.author
+let date = row.postedAt
 
-let likes = Number(detect(row,["likes","reactions","Likes"])) || 0
-let comments = Number(detect(row,["comments","Comments"])) || 0
+let likes = Number(row.likes) || 0
+let comments = Number(row.comments) || 0
 
-if(author) authors.add(author)
+authors.add(author)
 
-engagement += likes + comments
+totalEngagement += likes + comments
 
 if(date){
+
 mentionsByDate[date] = (mentionsByDate[date] || 0) + 1
+
 }
 
 })
@@ -67,9 +52,9 @@ mentionsByDate[date] = (mentionsByDate[date] || 0) + 1
 document.getElementById("totalMentions").innerText = data.length
 document.getElementById("authors").innerText = authors.size
 
-let avg = data.length ? Math.round(engagement/data.length) : 0
+let avgEngagement = data.length ? Math.round(totalEngagement/data.length) : 0
 
-document.getElementById("engagement").innerText = avg
+document.getElementById("engagement").innerText = avgEngagement
 
 renderChart(mentionsByDate)
 
@@ -87,6 +72,7 @@ datasets:[{
 label:"Mentions",
 data:Object.values(data),
 borderColor:"#38bdf8",
+backgroundColor:"rgba(56,189,248,0.2)",
 tension:0.3
 }]
 }
@@ -97,27 +83,20 @@ tension:0.3
 
 function renderTable(data){
 
-let tbody = document.getElementById("tableBody")
+let tbody=document.getElementById("tableBody")
 tbody.innerHTML=""
 
 data.forEach(row=>{
 
-let author = detect(row,["author","Author"])
-let text = detect(row,["text","postText","content","Post"])
-let date = detect(row,["postedAt","date","Date"])
-let likes = detect(row,["likes","reactions"]) || 0
-let comments = detect(row,["comments"]) || 0
-let link = detect(row,["linkedinUrl","url","postUrl"])
-
 let tr=document.createElement("tr")
 
 tr.innerHTML=`
-<td>${author}</td>
-<td>${text ? text.substring(0,120) : ""}</td>
-<td>${date}</td>
-<td>${likes}</td>
-<td>${comments}</td>
-<td>${link ? `<a href="${link}" target="_blank">View</a>` : ""}</td>
+<td>${row.author}</td>
+<td>${row.text ? row.text.substring(0,120) : ""}</td>
+<td>${row.postedAt}</td>
+<td>${row.likes || 0}</td>
+<td>${row.comments || 0}</td>
+<td><a href="${row.linkedinUrl}" target="_blank">View</a></td>
 `
 
 tbody.appendChild(tr)
@@ -130,7 +109,7 @@ document.getElementById("search").addEventListener("input",function(){
 
 let q=this.value.toLowerCase()
 
-let filtered = globalData.filter(r =>
+let filtered=globalData.filter(r =>
 JSON.stringify(r).toLowerCase().includes(q)
 )
 
