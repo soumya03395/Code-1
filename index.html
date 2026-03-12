@@ -63,7 +63,6 @@ margin-top:20px;
 th,td{
 padding:10px;
 border-bottom:1px solid #334155;
-text-align:left;
 }
 
 canvas{
@@ -134,9 +133,7 @@ width:300px;
 <th>Link</th>
 </tr>
 </thead>
-
 <tbody></tbody>
-
 </table>
 
 </div>
@@ -155,12 +152,13 @@ header:true,
 
 complete:function(results){
 
-let data = results.data.filter(row => row.Author)
+let data = results.data
+
+console.log("RAW DATA",data)
 
 globalData=data
 
 processData(data)
-
 renderTable(data)
 
 }
@@ -170,7 +168,9 @@ renderTable(data)
 function processData(data){
 
 let totalMentions=data.length
+
 let authors=new Set()
+
 let totalEngagement=0
 
 let mentionsByDate={}
@@ -178,17 +178,24 @@ let authorCount={}
 
 data.forEach(row=>{
 
-authors.add(row.Author)
+let author=row["Author"] || row["Author Name"]
 
-let likes=Number(row.Likes)||0
-let comments=Number(row.Comments)||0
+let post=row["Post_text"] || row["Post Text"]
+
+let likes=Number(row["Likes"])||0
+let comments=Number(row["Comments"])||0
+
+let date=row["Date"]
+
+if(!author) return
+
+authors.add(author)
 
 totalEngagement+=likes+comments
 
-let date=row.Date
-
 mentionsByDate[date]=(mentionsByDate[date]||0)+1
-authorCount[row.Author]=(authorCount[row.Author]||0)+1
+
+authorCount[author]=(authorCount[author]||0)+1
 
 })
 
@@ -210,15 +217,10 @@ type:"line",
 
 data:{
 labels:Object.keys(mentions),
-
 datasets:[{
-
 label:"Mentions",
-
 data:Object.values(mentions)
-
 }]
-
 }
 
 })
@@ -228,17 +230,11 @@ new Chart(document.getElementById("authorChart"),{
 type:"bar",
 
 data:{
-
 labels:Object.keys(authors),
-
 datasets:[{
-
 label:"Posts",
-
 data:Object.values(authors)
-
 }]
-
 }
 
 })
@@ -248,22 +244,23 @@ data:Object.values(authors)
 function renderTable(data){
 
 const tbody=document.querySelector("#postsTable tbody")
-
 tbody.innerHTML=""
 
 data.forEach(row=>{
 
+let author=row["Author"] || row["Author Name"]
+let post=row["Post_text"] || row["Post Text"]
+let link=row["Post_URL"] || row["Post URL"]
+
 let tr=document.createElement("tr")
 
 tr.innerHTML=`
-
-<td>${row.Author}</td>
-<td>${row.Post_text ? row.Post_text.substring(0,80)+"..." : ""}</td>
-<td>${row.Date}</td>
-<td>${row.Likes}</td>
-<td>${row.Comments}</td>
-<td><a href="${row.Post_URL}" target="_blank" style="color:#38bdf8">View</a></td>
-
+<td>${author}</td>
+<td>${post ? post.substring(0,80)+"..." : ""}</td>
+<td>${row["Date"]}</td>
+<td>${row["Likes"]}</td>
+<td>${row["Comments"]}</td>
+<td><a href="${link}" target="_blank" style="color:#38bdf8">View</a></td>
 `
 
 tbody.appendChild(tr)
@@ -278,8 +275,7 @@ let keyword=this.value.toLowerCase()
 
 let filtered=globalData.filter(row=>
 
-(row.Post_text && row.Post_text.toLowerCase().includes(keyword)) ||
-(row.Author && row.Author.toLowerCase().includes(keyword))
+JSON.stringify(row).toLowerCase().includes(keyword)
 
 )
 
